@@ -1,38 +1,41 @@
 using UnityEngine;
 using Mirror;
+using Zenject;
 
 public class Player : NetworkBehaviour
 {
     [SerializeField] private float _speed = 6f;
-    [SerializeField] private SpriteRenderer _spriteRenderer;
     [SerializeField] private Animator _animator;
+
+    private PlayerMovement _movement;
+    private PlayerAnimations _animations;
+    
+    private IInput _horizontal;
+    private KeyCode _leftMouseButton;
+
+    [Inject]
+    private void Construct(
+        [Inject(Id = InjectDataID.Horizontal)] IInput horizontal,
+        [Inject(Id = InjectDataID.LeftMouseButton)] KeyCode leftMouseButton)
+    {
+        _horizontal = horizontal;
+        _leftMouseButton = leftMouseButton;
+    }
+
+    private void Awake()
+    {
+        _animations = new PlayerAnimations(_horizontal, _leftMouseButton, _animator);
+        _movement = new PlayerMovement(_horizontal, gameObject.transform, _speed);
+    }
 
     private void Update()
     {
-        if (isOwned)
+        if (!isOwned) return;
+        if (Input.GetKeyDown(_leftMouseButton))
         {
-            float horizontal = Input.GetAxisRaw("Horizontal");
-            transform.Translate(new Vector2(horizontal * _speed, 0) * Time.deltaTime);
-
-            if(horizontal != 0)
-            {
-                FlipFace(horizontal);
-                _animator.SetBool("isRunning", true);
-            }
-            else
-            {
-                _animator.SetBool("isRunning", false);
-            }
-
-            if (Input.GetMouseButtonDown(0))
-            {
-                _animator.SetTrigger("Attack1");
-            }
+            _animator.SetTrigger(HashedAnimations.Attack);
         }
-    }
-
-    private void FlipFace(float horizontal)
-    {
-        gameObject.transform.localScale = new Vector2(horizontal, transform.localScale.y);
+        _animations.Update();
+        _movement.Update();
     }
 }
